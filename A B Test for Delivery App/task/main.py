@@ -6,14 +6,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime as dt
 
 
-def levene_test():
-    df = pd.read_csv('aa_test.csv')
-    s1 = df.iloc[:, 0]
-    s2 = df.iloc[:, 1]
-
-    print("Levene's test")
-    w, p = st.levene(s1, s2, center='mean')
-    w = round(w, 3)
+def hyp_by_p(sv, p, stat, text):
     if p > 0.05:
         pv = ">"
         h1 = 'no'
@@ -22,26 +15,26 @@ def levene_test():
         pv = "<="
         h1 = 'yes'
         eq = 'no'
-    print(f"W = {w}, p-value {pv} 0.05")
+    print(f"{stat} = {sv}, p-value {pv} 0.05")
     print(f"Reject null hypothesis: {h1}")
-    print(f"Variances are equal: {eq}")
+    print(f"{text}: {eq}")
+
+
+def levene_test():
+    df = pd.read_csv('aa_test.csv')
+    s1 = df.iloc[:, 0]
+    s2 = df.iloc[:, 1]
+    print("Levene's test")
+    w, p = st.levene(s1, s2, center='mean')
+    w = round(w, 3)
+    hyp_by_p(w, p, 'W', 'Variances are equal')
 
 def t_test(eq):
     global s1, s2
     print("\nT-test")
     t, p = st.ttest_ind(s1, s2, equal_var=(eq == 'yes'))
     t = round(t, 3)
-    if p > 0.05:
-        pv = ">"
-        h1 = 'no'
-        eq = 'yes'
-    else:
-        pv = "<="
-        h1 = 'yes'
-        eq = 'no'
-    print(f"t = {t}, p-value {pv} 0.05")
-    print(f"Reject null hypothesis: {h1}")
-    print(f"Means are equal: {eq}")
+    hyp_by_p(t, p, 't', 'Means are equal')
 
 def power_analysis():
     df = pd.read_csv('ab_test.csv')
@@ -89,7 +82,6 @@ def hist(df, col, xlabel):
     plt.show()
 
 def stat(df):
-    s = df.order_value
     q1 = df.order_value.quantile(0.99)
     q2 = df.session_duration.quantile(0.99)
     s = df.order_value[(df.order_value < q1) & (df.session_duration < q2)]
@@ -100,13 +92,28 @@ def stat(df):
     print(f"Standard deviation: {round(sd, 2)}")
     print(f"Max: {round(mx, 2)}")
 
+def mwu_test(df):
+    q1 = df.order_value.quantile(0.99)
+    q2 = df.session_duration.quantile(0.99)
+    d = df[(df.order_value < q1) & (df.session_duration < q2)]
+    s_a = d.order_value[d.group == 'Control']
+    s_b = d.order_value[d.group == 'Experimental']
+    u1, p = st.mannwhitneyu(s_a, s_b)
+    print("Mann-Whitney U test")
+    hyp_by_p(u1, p, 'U1', 'Distributions are same')
+
+
 
 df = pd.read_csv('ab_test.csv')
 
+# stage2
 # power_analysis()
 
-sessions(df)
-hist(df, 'order_value', 'Order value')
-hist(df, 'session_duration', 'Session duration')
+# stage3
+# sessions(df)
+# hist(df, 'order_value', 'Order value')
+# hist(df, 'session_duration', 'Session duration')
+# stat(df)
 
-stat(df)
+# stage4
+mwu_test(df)
