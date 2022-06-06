@@ -18,6 +18,7 @@ def hyp_by_p(sv, p, stat, text):
     print(f"{stat} = {sv}, p-value {pv} 0.05")
     print(f"Reject null hypothesis: {h1}")
     print(f"{text}: {eq}")
+    return eq == 'yes'
 
 
 def levene_test():
@@ -82,9 +83,7 @@ def hist(df, col, xlabel):
     plt.show()
 
 def stat(df):
-    q1 = df.order_value.quantile(0.99)
-    q2 = df.session_duration.quantile(0.99)
-    s = df.order_value[(df.order_value < q1) & (df.session_duration < q2)]
+    s = remove_outliers(df).order_value
     m = s.mean()
     sd = s.values.std(ddof=0)
     mx = s.max()
@@ -93,14 +92,37 @@ def stat(df):
     print(f"Max: {round(mx, 2)}")
 
 def mwu_test(df):
-    q1 = df.order_value.quantile(0.99)
-    q2 = df.session_duration.quantile(0.99)
-    d = df[(df.order_value < q1) & (df.session_duration < q2)]
+    d = remove_outliers(df)
     s_a = d.order_value[d.group == 'Control']
     s_b = d.order_value[d.group == 'Experimental']
     u1, p = st.mannwhitneyu(s_a, s_b)
     print("Mann-Whitney U test")
     hyp_by_p(u1, p, 'U1', 'Distributions are same')
+
+def remove_outliers(df):
+    q1 = df.order_value.quantile(0.99)
+    q2 = df.session_duration.quantile(0.99)
+    return df[(df.order_value < q1) & (df.session_duration < q2)]
+
+def normalize(df):
+    d0 = remove_outliers(df)
+    d = pd.DataFrame({'group': d0.group, 'log_order_value': np.log(d0.order_value)})
+    d.plot(y='log_order_value', kind='hist', bins=20)
+    plt.ylabel('Frequency')
+    plt.xlabel('Log order value', fontsize=14)
+    plt.show()
+
+    print("Levene's test")
+    s_a = d.log_order_value[d.group == 'Control']
+    s_b = d.log_order_value[d.group == 'Experimental']
+
+    w, p = st.levene(s_a, s_b)
+    w = round(w, 3)
+    eq = hyp_by_p(w, p, 'W', 'Variances are equal')
+    print("\nT-test")
+    t, p = st.ttest_ind(s_a, s_b, equal_var=eq)
+    t = round(t, 3)
+    hyp_by_p(t, p, 't', 'Means are equal')
 
 
 
@@ -116,4 +138,6 @@ df = pd.read_csv('ab_test.csv')
 # stat(df)
 
 # stage4
-mwu_test(df)
+# mwu_test(df)
+
+normalize(df)
